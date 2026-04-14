@@ -35,49 +35,71 @@ public class AuthService {
     private EmailVerificationTokenService tokenService;
 
     public AuthResponse register(RegisterRequest request) {
-        if (userRepository.existsByEmail(request.getEmail())) {
-            throw new RuntimeException("Email already registered");
-        }
-
-        User user = User.builder()
-                .userName(request.getUserName())
-                .email(request.getEmail())
-                .password(passwordEncoder.encode(request.getPassword()))
-                .role(Role.USER)
-                .trustScore(100)
-                .emailVerified(false)
-                .provider("local")
-                .build();
-
-        userRepository.save(user);
-
-        // Create verification token and send email
-        EmailVerificationToken token = tokenService.createVerificationToken(user);
         try {
-            emailService.sendEmailVerification(user.getEmail(), user.getUserName(), token.getToken());
-        } catch (MessagingException e) {
-            // Log error but don't fail registration
-            System.err.println("Failed to send verification email: " + e.getMessage());
+            if (userRepository.existsByEmail(request.getEmail())) {
+                throw new RuntimeException("Email already registered");
+            }
+
+            User user = User.builder()
+                    .userName(request.getUserName())
+                    .email(request.getEmail())
+                    .password(passwordEncoder.encode(request.getPassword()))
+                    .role(Role.USER)
+                    .trustScore(100)
+                    .emailVerified(false)
+                    .provider("local")
+                    .build();
+
+            userRepository.save(user);
+            System.out.println("User saved: " + user.getEmail());
+
+            // Create verification token (fail-safe)
+            EmailVerificationToken token = null;
+            try {
+                token = tokenService.createVerificationToken(user);
+                System.out.println("Verification token created: " + token.getToken());
+            } catch (Exception e) {
+                System.err.println("Failed to create verification token: " + e.getMessage());
+            }
+
+            // Send verification email (fail-safe - don't fail registration if email fails)
+            if (token != null) {
+                try {
+                    emailService.sendEmailVerification(user.getEmail(), user.getUserName(), token.getToken());
+                    System.out.println("Verification email sent");
+                } catch (Exception e) {
+                    // Log error but don't fail registration - email service might not be configured
+                    System.err.println("Failed to send verification email (this is OK for development): " + e.getMessage());
+                }
+            }
+
+            // Generate JWT token directly using email as subject
+            var userDetails = new org.springframework.security.core.userdetails.User(
+                    user.getEmail(),
+                    user.getPassword(),
+                    java.util.Collections.singletonList(
+                            new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_" + user.getRole().name())
+                    )
+            );
+            System.out.println("UserDetails created: " + userDetails.getUsername());
+
+            String jwtToken = jwtUtil.generateToken(userDetails);
+            System.out.println("JWT token generated successfully");
+
+            return AuthResponse.builder()
+                    .token(jwtToken)
+                    .email(user.getEmail())
+                    .userName(user.getUserName())
+                    .role(user.getRole().name())
+                    .userId(user.getUserId())
+                    .emailVerified(false)
+                    .message("Registration successful. Please check your email to verify your account.")
+                    .build();
+        } catch (Exception e) {
+            System.err.println("Registration error: " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException("Registration failed: " + e.getMessage(), e);
         }
-
-        // Generate JWT token (but user should verify email before full access)
-        String jwtToken = jwtUtil.generateToken(
-                org.springframework.security.core.userdetails.User.builder()
-                        .username(user.getEmail())
-                        .password(user.getPassword())
-                        .roles(user.getRole().name())
-                        .build()
-        );
-
-        return AuthResponse.builder()
-                .token(jwtToken)
-                .email(user.getEmail())
-                .userName(user.getUserName())
-                .role(user.getRole().name())
-                .userId(user.getUserId())
-                .emailVerified(false)
-                .message("Registration successful. Please check your email to verify your account.")
-                .build();
     }
 
     public AuthResponse registerOAuthUser(String email, String name, String provider, String providerId) {

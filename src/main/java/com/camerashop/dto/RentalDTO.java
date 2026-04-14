@@ -22,4 +22,7 @@ public class RentalDTO {
     private Long totalRentFee;
     private Long penaltyFee;
     private String status;
+    private String shippingAddress;
+    private String paymentMethod;
+    private Long shippingFee;
 }

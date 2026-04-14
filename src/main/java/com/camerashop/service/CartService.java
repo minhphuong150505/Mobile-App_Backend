@@ -30,14 +30,16 @@ public class CartService {
     @Autowired
     private AssetImageRepository assetImageRepository;
 
-    public List<CartItemDTO> getCartItems(String userId) {
-        List<CartItem> cartItems = cartItemRepository.findByUserId(userId);
+    public List<CartItemDTO> getCartItems(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found with email: " + email));
+        List<CartItem> cartItems = cartItemRepository.findByUserId(user.getUserId());
         return cartItems.stream().map(this::toDTO).collect(Collectors.toList());
     }
 
-    public CartItemDTO addToCart(String userId, String itemId, String type, Integer quantity) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+    public CartItemDTO addToCart(String email, String itemId, String type, Integer quantity) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found with email: " + email));
 
         CartItem cartItem = new CartItem();
         cartItem.setUser(user);
@@ -62,8 +64,10 @@ public class CartService {
         cartItemRepository.deleteById(cartItemId);
     }
 
-    public void clearCart(String userId) {
-        cartItemRepository.deleteByUserId(userId);
+    public void clearCart(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found with email: " + email));
+        cartItemRepository.deleteByUserId(user.getUserId());
     }
 
     public CartItemDTO updateQuantity(String cartItemId, Integer quantity) {

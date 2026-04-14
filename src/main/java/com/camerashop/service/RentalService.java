@@ -61,7 +61,8 @@ public class RentalService {
     }
 
     @Transactional
-    public RentalDTO createRental(String userId, String assetId, LocalDate startDate, LocalDate endDate) {
+    public RentalDTO createRental(String userId, String assetId, LocalDate startDate, LocalDate endDate,
+                                   String shippingAddress, String paymentMethod, Long shippingFee) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
@@ -86,6 +87,8 @@ public class RentalService {
         long totalRentFee = asset.getDailyRate() * days;
         long depositFee = asset.getDailyRate() * 3; // 3 days deposit
 
+        Rental.PaymentMethod paymentMethodEnum = Rental.PaymentMethod.valueOf(paymentMethod);
+
         Rental rental = Rental.builder()
                 .user(user)
                 .asset(asset)
@@ -95,6 +98,9 @@ public class RentalService {
                 .totalRentFee(totalRentFee)
                 .penaltyFee(0L)
                 .status(Rental.RentalStatus.PENDING)
+                .shippingAddress(shippingAddress)
+                .paymentMethod(paymentMethodEnum)
+                .shippingFee(shippingFee)
                 .build();
 
         rentalRepository.save(rental);
@@ -228,6 +234,9 @@ public class RentalService {
                 .totalRentFee(rental.getTotalRentFee())
                 .penaltyFee(rental.getPenaltyFee())
                 .status(rental.getStatus().name())
+                .shippingAddress(rental.getShippingAddress())
+                .paymentMethod(rental.getPaymentMethod() != null ? rental.getPaymentMethod().name() : null)
+                .shippingFee(rental.getShippingFee())
                 .build();
     }
 }

@@ -30,8 +30,14 @@ public class RentalController {
             String assetId = body.get("assetId");
             LocalDate startDate = LocalDate.parse(body.get("startDate"));
             LocalDate endDate = LocalDate.parse(body.get("endDate"));
+            String shippingAddress = body.get("shippingAddress");
+            String paymentMethod = body.get("paymentMethod");
+            Long shippingFee = Long.parseLong(body.getOrDefault("shippingFee", "0"));
 
-            RentalDTO rental = rentalService.createRental(userDetails.getUsername(), assetId, startDate, endDate);
+            RentalDTO rental = rentalService.createRental(
+                userDetails.getUsername(), assetId, startDate, endDate,
+                shippingAddress, paymentMethod, shippingFee
+            );
             return ResponseEntity.ok(ApiResponse.success(rental));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));

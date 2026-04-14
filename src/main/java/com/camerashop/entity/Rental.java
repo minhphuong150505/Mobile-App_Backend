@@ -45,7 +45,18 @@ public class Rental {
     @Enumerated(EnumType.STRING)
     private RentalStatus status = RentalStatus.PENDING;
 
+    private String shippingAddress;
+
+    @Enumerated(EnumType.STRING)
+    private PaymentMethod paymentMethod;
+
+    private Long shippingFee = 0L;
+
     public enum RentalStatus {
         PENDING, ACTIVE, COMPLETED, CANCELLED
+    }
+
+    public enum PaymentMethod {
+        COD, MoMo
     }
 }

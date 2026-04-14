@@ -24,7 +24,7 @@ public class AuthController {
         try {
             AuthResponse response = authService.register(request);
             return ResponseEntity.ok(ApiResponse.success(response));
-        } catch (RuntimeException e) {
+        } catch (Exception e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         }
     }
