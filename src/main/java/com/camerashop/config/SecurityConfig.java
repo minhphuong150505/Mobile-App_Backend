@@ -2,8 +2,10 @@ package com.camerashop.config;
 
 import com.camerashop.config.OAuth2SuccessHandler;
 import com.camerashop.filter.JwtAuthFilter;
+import com.camerashop.service.AuthService;
 import com.camerashop.service.CustomUserDetailsService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -36,6 +38,10 @@ public class SecurityConfig {
     @Autowired
     private CustomUserDetailsService userDetailsService;
 
+    @Autowired
+    @Lazy
+    private AuthService authService;
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
@@ -43,6 +49,7 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/**", "/api/categories/**", "/api/products/**", "/api/assets/**", "/api/payment/**", "/api/shipping/**").permitAll()
+                .requestMatchers("/api/cart/**", "/api/favorites/**", "/api/orders/**", "/api/rentals/**", "/api/notifications/**", "/api/users/**").authenticated()
                 .anyRequest().authenticated()
             )
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -53,6 +60,13 @@ public class SecurityConfig {
                     response.setContentType("application/json");
                     response.setStatus(401);
                     response.getWriter().write("{\"success\": false, \"message\": \"OAuth authentication failed: " + exception.getMessage() + "\"}");
+                })
+            )
+            .exceptionHandling(exceptions -> exceptions
+                .authenticationEntryPoint((request, response, authException) -> {
+                    response.setContentType("application/json");
+                    response.setStatus(401);
+                    response.getWriter().write("{\"success\": false, \"message\": \"Unauthorized - please login\"}");
                 })
             )
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
@@ -93,6 +107,6 @@ public class SecurityConfig {
 
     @Bean
     public OAuth2SuccessHandler oauth2SuccessHandler() {
-        return new OAuth2SuccessHandler();
+        return new OAuth2SuccessHandler(authService);
     }
 }

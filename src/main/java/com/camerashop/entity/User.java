@@ -28,7 +28,6 @@ public class User {
 
     private String password;
 
-    @Column(unique = true)
     private String provider; // google, apple, local
 
     @Column(unique = true)

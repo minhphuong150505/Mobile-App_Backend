@@ -2,6 +2,10 @@ package com.camerashop.controller;
 
 import com.camerashop.dto.ApiResponse;
 import com.camerashop.dto.RentalDTO;
+import com.camerashop.entity.Rental;
+import com.camerashop.entity.User;
+import com.camerashop.repository.RentalRepository;
+import com.camerashop.repository.UserRepository;
 import com.camerashop.service.RentalService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -21,6 +25,12 @@ public class RentalController {
 
     @Autowired
     private RentalService rentalService;
+
+    @Autowired
+    private RentalRepository rentalRepository;
+
+    @Autowired
+    private UserRepository userRepository;
 
     @PostMapping
     public ResponseEntity<ApiResponse> createRental(
@@ -51,10 +61,19 @@ public class RentalController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse> getRentalById(@PathVariable String id) {
+    public ResponseEntity<ApiResponse> getRentalById(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @PathVariable String id) {
         try {
-            RentalDTO rental = rentalService.getRentalById(id);
-            return ResponseEntity.ok(ApiResponse.success(rental));
+            User user = userRepository.findByEmail(userDetails.getUsername())
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+            Rental rental = rentalRepository.findById(id)
+                    .orElseThrow(() -> new RuntimeException("Rental not found"));
+            if (!rental.getUser().getUserId().equals(user.getUserId())) {
+                return ResponseEntity.status(403).body(ApiResponse.error("Not authorized"));
+            }
+            RentalDTO rentalDTO = rentalService.getRentalById(id);
+            return ResponseEntity.ok(ApiResponse.success(rentalDTO));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         }
@@ -103,12 +122,20 @@ public class RentalController {
      */
     @PostMapping("/{id}/extend")
     public ResponseEntity<ApiResponse> extendRental(
+            @AuthenticationPrincipal UserDetails userDetails,
             @PathVariable String id,
             @RequestBody Map<String, String> body) {
         try {
+            User user = userRepository.findByEmail(userDetails.getUsername())
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+            Rental rental = rentalRepository.findById(id)
+                    .orElseThrow(() -> new RuntimeException("Rental not found"));
+            if (!rental.getUser().getUserId().equals(user.getUserId())) {
+                return ResponseEntity.status(403).body(ApiResponse.error("Not authorized"));
+            }
             LocalDate newEndDate = LocalDate.parse(body.get("newEndDate"));
-            RentalDTO rental = rentalService.extendRental(id, newEndDate);
-            return ResponseEntity.ok(ApiResponse.success(rental));
+            RentalDTO result = rentalService.extendRental(id, newEndDate);
+            return ResponseEntity.ok(ApiResponse.success(result));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         }
@@ -119,12 +146,20 @@ public class RentalController {
      */
     @PostMapping("/{id}/return")
     public ResponseEntity<ApiResponse> returnRental(
+            @AuthenticationPrincipal UserDetails userDetails,
             @PathVariable String id,
             @RequestBody Map<String, String> body) {
         try {
+            User user = userRepository.findByEmail(userDetails.getUsername())
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+            Rental rental = rentalRepository.findById(id)
+                    .orElseThrow(() -> new RuntimeException("Rental not found"));
+            if (!rental.getUser().getUserId().equals(user.getUserId())) {
+                return ResponseEntity.status(403).body(ApiResponse.error("Not authorized"));
+            }
             LocalDate returnDate = LocalDate.parse(body.get("returnDate"));
-            RentalDTO rental = rentalService.returnRental(id, returnDate);
-            return ResponseEntity.ok(ApiResponse.success(rental));
+            RentalDTO result = rentalService.returnRental(id, returnDate);
+            return ResponseEntity.ok(ApiResponse.success(result));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         }

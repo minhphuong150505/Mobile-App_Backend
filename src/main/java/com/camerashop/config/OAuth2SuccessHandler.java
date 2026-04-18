@@ -1,10 +1,7 @@
 package com.camerashop.config;
 
-import com.camerashop.repository.UserRepository;
 import com.camerashop.service.AuthService;
-import com.camerashop.util.JwtUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.context.ApplicationContext;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
@@ -12,22 +9,20 @@ import org.springframework.security.web.authentication.SimpleUrlAuthenticationSu
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
 /**
  * OAuth2 authentication success handler.
- * Uses ApplicationContext to avoid circular dependency.
  */
 public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
 
-    private ApplicationContext applicationContext;
+    private final AuthService authService;
 
-    public OAuth2SuccessHandler() {
-    }
-
-    public void setApplicationContext(ApplicationContext applicationContext) {
-        this.applicationContext = applicationContext;
+    public OAuth2SuccessHandler(AuthService authService) {
+        this.authService = authService;
     }
 
     @Override
@@ -36,9 +31,6 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
         OAuth2AuthenticationToken oauthToken = (OAuth2AuthenticationToken) authentication;
         String provider = oauthToken.getAuthorizedClientRegistrationId();
-
-        // Get beans from application context
-        AuthService authService = applicationContext.getBean(AuthService.class);
 
         // Extract user info from OAuth2 provider
         Map<String, Object> attributes = oauthToken.getPrincipal().getAttributes();
@@ -66,9 +58,20 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         // Register or login the user
         var authResponse = authService.registerOAuthUser(email, name, provider, providerId);
 
-        // Redirect to frontend with token using deep link scheme
-        // For Expo Go: mobile://oauth-success?token=...
-        String frontendUrl = "mobile://oauth-success?token=" + authResponse.getToken();
-        response.sendRedirect(frontendUrl);
+        // Redirect to frontend with token as query parameter
+        // For web: http://localhost:8081/oauth-success?token=...
+        // For mobile (Expo): mobile://oauth-success?token=...
+        String frontendUrl = System.getenv("FRONTEND_URL");
+        if (frontendUrl == null || frontendUrl.isEmpty()) {
+            // Default to localhost for development
+            frontendUrl = "http://localhost:8081";
+        }
+
+        // Encode token to handle special characters
+        String encodedToken = URLEncoder.encode(authResponse.getToken(), StandardCharsets.UTF_8);
+        String redirectUrl = frontendUrl + "/oauth-success?token=" + encodedToken;
+
+        System.out.println("OAuth login successful, redirecting to: " + redirectUrl);
+        response.sendRedirect(redirectUrl);
     }
 }

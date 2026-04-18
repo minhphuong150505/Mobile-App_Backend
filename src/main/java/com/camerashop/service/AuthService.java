@@ -12,8 +12,10 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Transactional
 public class AuthService {
 
     @Autowired
@@ -102,6 +104,7 @@ public class AuthService {
         }
     }
 
+    @Transactional
     public AuthResponse registerOAuthUser(String email, String name, String provider, String providerId) {
         User user = userRepository.findByEmail(email).orElse(null);
 
@@ -119,13 +122,11 @@ public class AuthService {
                     .build();
             userRepository.save(user);
         } else {
-            // Update existing user with OAuth info if needed
-            if (user.getProvider() == null) {
-                user.setProvider(provider);
-                user.setProviderId(providerId);
-                user.setEmailVerified(true);
-                userRepository.save(user);
-            }
+            // Update existing user with OAuth info
+            user.setProvider(provider);
+            user.setProviderId(providerId);
+            user.setEmailVerified(true);
+            userRepository.save(user);
         }
 
         String token = jwtUtil.generateToken(

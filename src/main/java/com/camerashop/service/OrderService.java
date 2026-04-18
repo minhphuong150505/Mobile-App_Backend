@@ -38,9 +38,9 @@ public class OrderService {
 
     @SuppressWarnings("unchecked")
     @Transactional
-    public OrderDTO createOrder(String userId, String shippingAddress, String paymentMethod,
+    public OrderDTO createOrder(String email, String shippingAddress, String paymentMethod,
                                  Long shippingFee, List<Map<String, Object>> items) {
-        User user = userRepository.findById(userId)
+        User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         Order.PaymentMethod orderPaymentMethod = Order.PaymentMethod.valueOf(paymentMethod);
@@ -91,13 +91,15 @@ public class OrderService {
         orderRepository.save(order);
 
         // Clear user's cart
-        cartItemRepository.deleteByUserId(userId);
+        cartItemRepository.deleteByUserId(user.getUserId());
 
         return toDTO(order);
     }
 
-    public List<OrderDTO> getOrdersByUser(String userId) {
-        return orderRepository.findByUserId(userId, org.springframework.data.domain.PageRequest.of(0, 100))
+    public List<OrderDTO> getOrdersByUser(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        return orderRepository.findByUserId(user.getUserId(), org.springframework.data.domain.PageRequest.of(0, 100))
                 .stream()
                 .map(this::toDTO)
                 .collect(Collectors.toList());

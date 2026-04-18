@@ -11,6 +11,7 @@ import com.camerashop.service.EmailService;
 import com.camerashop.service.MoMoService;
 import jakarta.mail.MessagingException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -38,6 +39,9 @@ public class PaymentController {
 
     @Autowired
     private EmailService emailService;
+
+    @Value("${app.frontend-url:http://localhost:8081}")
+    private String frontendUrl;
 
     /**
      * Create MoMo payment URL for an order
@@ -209,7 +213,14 @@ public class PaymentController {
                     Rental rental = rentalOpt.get();
                     transaction.setRental(rental);
                     paymentTransactionRepository.save(transaction);
-                    // Update rental status if needed
+
+                    if (isSuccess) {
+                        rental.setStatus(Rental.RentalStatus.ACTIVE);
+                        rentalRepository.save(rental);
+                    } else {
+                        rental.setStatus(Rental.RentalStatus.CANCELLED);
+                        rentalRepository.save(rental);
+                    }
                 }
             }
 
@@ -239,7 +250,7 @@ public class PaymentController {
             if (!momoService.validateRedirectCallback(params)) {
                 System.err.println("Invalid MoMo redirect signature");
                 return ResponseEntity.status(302)
-                        .header("Location", "http://localhost:8081/payment-failed?error=invalid_signature")
+                        .header("Location", frontendUrl + "/payment-failed?error=invalid_signature")
                         .build();
             }
 
@@ -249,15 +260,15 @@ public class PaymentController {
 
             // Redirect to frontend success/failure page
             String redirectUrl = isSuccess
-                    ? "http://localhost:8081/payment-success?orderCode=" + orderId
-                    : "http://localhost:8081/payment-failed?orderCode=" + orderId + "&error=" + params.get("message");
+                    ? frontendUrl + "/payment-success?orderCode=" + orderId
+                    : frontendUrl + "/payment-failed?orderCode=" + orderId + "&error=" + params.get("message");
 
             return ResponseEntity.status(302).header("Location", redirectUrl).build();
 
         } catch (Exception e) {
             System.err.println("Error handling MoMo redirect: " + e.getMessage());
             return ResponseEntity.status(302)
-                    .header("Location", "http://localhost:8081/payment-failed?error=internal_error")
+                    .header("Location", frontendUrl + "/payment-failed?error=internal_error")
                     .build();
         }
     }
@@ -344,12 +355,12 @@ public class PaymentController {
                     .append(" x ")
                     .append(item.getQuantity())
                     .append(" - ₫")
-                    .append(String.format("%,0f", item.getPriceAtPurchase() * item.getQuantity()))
+                    .append(String.format("%,.0f", item.getPriceAtPurchase() * item.getQuantity()))
                     .append("</p>");
         });
 
         if (order.getShippingFee() != null && order.getShippingFee() > 0) {
-            orderDetails.append("<p>Shipping: ₫").append(String.format("%,0f", order.getShippingFee())).append("</p>");
+            orderDetails.append("<p>Shipping: ₫").append(String.format("%,.0f", order.getShippingFee())).append("</p>");
         }
 
         emailService.sendOrderConfirmation(

@@ -30,18 +30,23 @@ public class FavoriteService {
     @Autowired
     private AssetImageRepository assetImageRepository;
 
-    public List<FavoriteDTO> getFavorites(String userId) {
-        List<Favorite> favorites = favoriteRepository.findByUserId(userId);
+    public List<FavoriteDTO> getFavorites(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        List<Favorite> favorites = favoriteRepository.findByUserId(user.getUserId());
         return favorites.stream().map(this::toDTO).collect(Collectors.toList());
     }
 
-    public FavoriteDTO toggleFavorite(String userId, String itemId, String type) {
+    public FavoriteDTO toggleFavorite(String email, String itemId, String type) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        String userId = user.getUserId();
+
         if ("PRODUCT".equalsIgnoreCase(type)) {
             if (favoriteRepository.existsByUserIdAndProductId(userId, itemId)) {
                 favoriteRepository.deleteByUserIdAndProductId(userId, itemId);
                 return null; // Removed
             } else {
-                User user = userRepository.findById(userId).orElseThrow(() -> new RuntimeException("User not found"));
                 Product product = productRepository.findById(itemId).orElseThrow(() -> new RuntimeException("Product not found"));
 
                 Favorite favorite = Favorite.builder()
@@ -57,7 +62,6 @@ public class FavoriteService {
                 favoriteRepository.deleteByUserIdAndAssetId(userId, itemId);
                 return null; // Removed
             } else {
-                User user = userRepository.findById(userId).orElseThrow(() -> new RuntimeException("User not found"));
                 Asset asset = assetRepository.findById(itemId).orElseThrow(() -> new RuntimeException("Asset not found"));
 
                 Favorite favorite = Favorite.builder()
@@ -71,7 +75,10 @@ public class FavoriteService {
         }
     }
 
-    public boolean isFavorite(String userId, String itemId, String type) {
+    public boolean isFavorite(String email, String itemId, String type) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        String userId = user.getUserId();
         if ("PRODUCT".equalsIgnoreCase(type)) {
             return favoriteRepository.existsByUserIdAndProductId(userId, itemId);
         } else {

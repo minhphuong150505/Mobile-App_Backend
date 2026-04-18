@@ -5,6 +5,7 @@ import com.camerashop.service.AuthService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
@@ -34,8 +35,10 @@ public class AuthController {
         try {
             AuthResponse response = authService.login(request);
             return ResponseEntity.ok(ApiResponse.success(response));
-        } catch (Exception e) {
+        } catch (BadCredentialsException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error("Invalid email or password"));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(ApiResponse.error("Login failed: " + e.getMessage()));
         }
     }
 

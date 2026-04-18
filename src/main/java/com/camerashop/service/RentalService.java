@@ -61,9 +61,9 @@ public class RentalService {
     }
 
     @Transactional
-    public RentalDTO createRental(String userId, String assetId, LocalDate startDate, LocalDate endDate,
+    public RentalDTO createRental(String email, String assetId, LocalDate startDate, LocalDate endDate,
                                    String shippingAddress, String paymentMethod, Long shippingFee) {
-        User user = userRepository.findById(userId)
+        User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         Asset asset = assetRepository.findById(assetId)
@@ -200,8 +200,10 @@ public class RentalService {
         );
     }
 
-    public List<RentalDTO> getRentalsByUser(String userId) {
-        return rentalRepository.findByUserId(userId, org.springframework.data.domain.PageRequest.of(0, 100))
+    public List<RentalDTO> getRentalsByUser(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        return rentalRepository.findByUserId(user.getUserId(), org.springframework.data.domain.PageRequest.of(0, 100))
                 .stream()
                 .map(this::toDTO)
                 .collect(Collectors.toList());

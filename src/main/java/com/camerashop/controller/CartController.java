@@ -2,6 +2,10 @@ package com.camerashop.controller;
 
 import com.camerashop.dto.ApiResponse;
 import com.camerashop.dto.CartItemDTO;
+import com.camerashop.entity.CartItem;
+import com.camerashop.entity.User;
+import com.camerashop.repository.CartItemRepository;
+import com.camerashop.repository.UserRepository;
 import com.camerashop.service.CartService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -19,6 +23,12 @@ public class CartController {
 
     @Autowired
     private CartService cartService;
+
+    @Autowired
+    private CartItemRepository cartItemRepository;
+
+    @Autowired
+    private UserRepository userRepository;
 
     @GetMapping
     public ResponseEntity<ApiResponse> getCartItems(@AuthenticationPrincipal UserDetails userDetails) {
@@ -46,8 +56,17 @@ public class CartController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<ApiResponse> removeFromCart(@PathVariable String id) {
+    public ResponseEntity<ApiResponse> removeFromCart(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @PathVariable String id) {
         try {
+            User user = userRepository.findByEmail(userDetails.getUsername())
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+            CartItem cartItem = cartItemRepository.findById(id)
+                    .orElseThrow(() -> new RuntimeException("Cart item not found"));
+            if (!cartItem.getUser().getUserId().equals(user.getUserId())) {
+                return ResponseEntity.status(403).body(ApiResponse.error("Not authorized"));
+            }
             cartService.removeFromCart(id);
             return ResponseEntity.ok(ApiResponse.success("Item removed from cart"));
         } catch (Exception e) {
@@ -57,11 +76,19 @@ public class CartController {
 
     @PutMapping("/{id}/quantity")
     public ResponseEntity<ApiResponse> updateQuantity(
+            @AuthenticationPrincipal UserDetails userDetails,
             @PathVariable String id,
             @RequestBody Map<String, Integer> body) {
         try {
-            CartItemDTO cartItem = cartService.updateQuantity(id, body.get("quantity"));
-            return ResponseEntity.ok(ApiResponse.success(cartItem));
+            User user = userRepository.findByEmail(userDetails.getUsername())
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+            CartItem cartItem = cartItemRepository.findById(id)
+                    .orElseThrow(() -> new RuntimeException("Cart item not found"));
+            if (!cartItem.getUser().getUserId().equals(user.getUserId())) {
+                return ResponseEntity.status(403).body(ApiResponse.error("Not authorized"));
+            }
+            CartItemDTO updated = cartService.updateQuantity(id, body.get("quantity"));
+            return ResponseEntity.ok(ApiResponse.success(updated));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         }

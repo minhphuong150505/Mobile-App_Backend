@@ -146,7 +146,7 @@ public class NotificationService {
     public void notifyPaymentSuccess(Order order, double amount) {
         String title = "Payment Successful";
         String message = String.format(
-                "Your payment of ₫%,0d for order %s has been confirmed.",
+                "Your payment of ₫%,d for order %s has been confirmed.",
                 (long) amount,
                 order.getOrderId()
         );
@@ -168,12 +168,14 @@ public class NotificationService {
      */
     @Transactional(readOnly = true)
     public Page<NotificationDTO.NotificationResponse> getUserNotifications(
-            String userId,
+            String email,
             int page,
             int size
     ) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
         PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-        Page<Notification> notifications = notificationRepository.findByUserUserId(userId, pageRequest);
+        Page<Notification> notifications = notificationRepository.findByUserUserId(user.getUserId(), pageRequest);
 
         return notifications.map(this::toResponse);
     }
@@ -182,8 +184,10 @@ public class NotificationService {
      * Get unread notifications for a user
      */
     @Transactional(readOnly = true)
-    public List<NotificationDTO.NotificationResponse> getUnreadNotifications(String userId) {
-        List<Notification> notifications = notificationRepository.findByUserUserIdAndIsReadFalse(userId);
+    public List<NotificationDTO.NotificationResponse> getUnreadNotifications(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        List<Notification> notifications = notificationRepository.findByUserUserIdAndIsReadFalse(user.getUserId());
         return notifications.stream().map(this::toResponse).collect(Collectors.toList());
     }
 
@@ -191,19 +195,23 @@ public class NotificationService {
      * Get unread notification count
      */
     @Transactional(readOnly = true)
-    public long getUnreadCount(String userId) {
-        return notificationRepository.countByUserUserIdAndIsReadFalse(userId);
+    public long getUnreadCount(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        return notificationRepository.countByUserUserIdAndIsReadFalse(user.getUserId());
     }
 
     /**
      * Mark a notification as read
      */
     @Transactional
-    public NotificationDTO.NotificationResponse markAsRead(String notificationId, String userId) {
+    public NotificationDTO.NotificationResponse markAsRead(String notificationId, String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
         Notification notification = notificationRepository.findById(notificationId)
                 .orElseThrow(() -> new RuntimeException("Notification not found: " + notificationId));
 
-        if (!notification.getUser().getUserId().equals(userId)) {
+        if (!notification.getUser().getUserId().equals(user.getUserId())) {
             throw new RuntimeException("Notification does not belong to user");
         }
 
@@ -217,19 +225,23 @@ public class NotificationService {
      * Mark all notifications as read for a user
      */
     @Transactional
-    public int markAllAsRead(String userId) {
-        return notificationRepository.markAllAsRead(userId, LocalDateTime.now());
+    public int markAllAsRead(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        return notificationRepository.markAllAsRead(user.getUserId(), LocalDateTime.now());
     }
 
     /**
      * Delete a notification
      */
     @Transactional
-    public void deleteNotification(String notificationId, String userId) {
+    public void deleteNotification(String notificationId, String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
         Notification notification = notificationRepository.findById(notificationId)
                 .orElseThrow(() -> new RuntimeException("Notification not found: " + notificationId));
 
-        if (!notification.getUser().getUserId().equals(userId)) {
+        if (!notification.getUser().getUserId().equals(user.getUserId())) {
             throw new RuntimeException("Notification does not belong to user");
         }
 
