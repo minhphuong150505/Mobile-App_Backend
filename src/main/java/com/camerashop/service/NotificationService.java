@@ -102,7 +102,7 @@ public class NotificationService {
                 "Your rental of %s is due in %d day(s). Please return it by %s to avoid late fees.",
                 rental.getAsset().getModelName(),
                 daysUntilReturn,
-                rental.getReturnDate()
+                rental.getEndDate()
         );
 
         createNotification(
@@ -323,6 +323,17 @@ public class NotificationService {
             uniqueByTitle.putIfAbsent(n.getTitle(), n);
         }
         return uniqueByTitle.values().stream().map(this::toResponse).collect(Collectors.toList());
+    }
+
+    /**
+     * Check if an overdue notification already exists for a rental
+     */
+    @Transactional(readOnly = true)
+    public boolean hasOverdueNotification(String rentalId) {
+        List<Notification> existing = notificationRepository.findByReferenceIdAndReferenceType(
+                rentalId, Notification.ReferenceType.RENTAL
+        );
+        return existing.stream().anyMatch(n -> n.getType() == Notification.NotificationType.RENTAL_OVERDUE);
     }
 
     /**

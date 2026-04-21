@@ -60,7 +60,7 @@ public class NotificationScheduler {
 
     /**
      * Check for overdue rentals every day at 10 AM
-     * Notifies users with overdue rentals
+     * Notifies users with overdue rentals (only once per rental to avoid spam)
      */
     @Scheduled(cron = "0 0 10 * * ?") // Every day at 10 AM
     public void checkOverdueRentals() {
@@ -78,8 +78,14 @@ public class NotificationScheduler {
                     long daysOverdue = java.time.temporal.ChronoUnit.DAYS.between(rental.getEndDate(), today);
 
                     try {
-                        notificationService.notifyRentalOverdue(rental, daysOverdue);
-                        System.out.println("Sent overdue notification for rental: " + rental.getRentalId());
+                        // Only send if no overdue notification exists yet for this rental
+                        boolean alreadyNotified = notificationService.hasOverdueNotification(rental.getRentalId());
+                        if (!alreadyNotified) {
+                            notificationService.notifyRentalOverdue(rental, daysOverdue);
+                            System.out.println("Sent overdue notification for rental: " + rental.getRentalId());
+                        } else {
+                            System.out.println("Skipped duplicate overdue notification for rental: " + rental.getRentalId());
+                        }
                     } catch (Exception e) {
                         System.err.println("Failed to send overdue notification for rental " + rental.getRentalId() + ": " + e.getMessage());
                     }

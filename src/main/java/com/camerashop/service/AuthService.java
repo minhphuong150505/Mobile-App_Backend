@@ -5,7 +5,7 @@ import com.camerashop.entity.EmailVerificationToken;
 import com.camerashop.entity.User;
 import com.camerashop.entity.User.Role;
 import com.camerashop.repository.UserRepository;
-import com.camerashop.util.JwtUtil;
+// JwtUtil kept for backwards compatibility if needed elsewhere
 import jakarta.mail.MessagingException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -28,7 +28,7 @@ public class AuthService {
     private AuthenticationManager authenticationManager;
 
     @Autowired
-    private JwtUtil jwtUtil;
+    private JwtService jwtService;
 
     @Autowired
     private EmailService emailService;
@@ -85,18 +85,8 @@ public class AuthService {
                 }
             }
 
-            // Generate JWT token directly using email as subject
-            var userDetails = new org.springframework.security.core.userdetails.User(
-                    user.getEmail(),
-                    user.getPassword(),
-                    java.util.Collections.singletonList(
-                            new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_" + user.getRole().name())
-                    )
-            );
-            System.out.println("UserDetails created: " + userDetails.getUsername());
-
-            String jwtToken = jwtUtil.generateToken(userDetails);
-            System.out.println("JWT token generated successfully");
+            // Generate JWT token using JwtService with userId as subject
+            String jwtToken = jwtService.generateToken(user);
 
             return AuthResponse.builder()
                     .token(jwtToken)
@@ -139,13 +129,8 @@ public class AuthService {
             userRepository.save(user);
         }
 
-        String token = jwtUtil.generateToken(
-                org.springframework.security.core.userdetails.User.builder()
-                        .username(user.getEmail())
-                        .password("")
-                        .roles(user.getRole().name())
-                        .build()
-        );
+        // Generate JWT token using JwtService with userId as subject
+        String token = jwtService.generateToken(user);
 
         return AuthResponse.builder()
                 .token(token)
@@ -199,13 +184,7 @@ public class AuthService {
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new RuntimeException("Invalid email or password"));
 
-        String token = jwtUtil.generateToken(
-                org.springframework.security.core.userdetails.User.builder()
-                        .username(user.getEmail())
-                        .password(user.getPassword())
-                        .roles(user.getRole().name())
-                        .build()
-        );
+        String token = jwtService.generateToken(user);
 
         return AuthResponse.builder()
                 .token(token)

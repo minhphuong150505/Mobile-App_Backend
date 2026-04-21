@@ -2,6 +2,8 @@ package com.camerashop.config;
 
 import com.camerashop.service.AuthService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
@@ -19,11 +21,9 @@ import java.util.Map;
  */
 public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
 
-    private final AuthService authService;
-
-    public OAuth2SuccessHandler(AuthService authService) {
-        this.authService = authService;
-    }
+    @Autowired
+    @Lazy
+    private AuthService authService;
 
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,

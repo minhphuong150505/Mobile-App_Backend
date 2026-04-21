@@ -40,6 +40,9 @@ public class PaymentController {
     @Autowired
     private EmailService emailService;
 
+    @Autowired
+    private NotificationService notificationService;
+
     @Value("${app.frontend-url:http://localhost:8081}")
     private String frontendUrl;
 
@@ -199,6 +202,13 @@ public class PaymentController {
                         sendOrderConfirmationEmail(order);
                     } catch (MessagingException e) {
                         System.err.println("Failed to send confirmation email: " + e.getMessage());
+                    }
+
+                    // Send payment success notification
+                    try {
+                        notificationService.notifyPaymentSuccess(order, (double) paymentAmount);
+                    } catch (Exception e) {
+                        System.err.println("Failed to send payment notification: " + e.getMessage());
                     }
 
                     System.out.println("Order " + orderId + " paid successfully via MoMo");
